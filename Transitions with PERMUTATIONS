@@ -1,0 +1,107 @@
+transition=function(data,ind.matrix=FALSE, n.sim=1000)
+{ 
+#Initial requirements.
+  if (class(data)!="data.frame")
+  {stop("The object should be a data.frame")}  
+  if(ncol(data)<2)
+  {stop("The object need at least two columns")}
+  if (length(data[,1])!=length(data[,2]))
+  {stop("The variables have to be the same length")}
+   if(sum(is.na(data))!=0)
+  {stop("The object should not have NA’s ")}
+    if(class(data[,1])!="factor"|class(data[,2])!="factor")
+  {warning("The variables were transformed to factors")}
+  comporta=data
+  comporta$ind= as.factor(data[,1])
+  comporta$comp= as.factor(data[,2])
+#Creating an empty array to save the observed transitions by pair.
+freq.bruta=array(NA, dim=c(length(levels(comporta$comp)),length(levels(comporta$comp)),length(levels(comporta$ind))),dimnames=list(levels(comporta$comp),levels(comporta$comp),levels(comporta$ind)))
+#Creating the observed transitions matrix.
+  for(k in 1:length(levels(comporta$ind))) 
+  {
+#Creating different tables to each pair to avoid transitions between behaviors of different pairs. 
+       indi=subset(comporta,subset = comporta$ind==levels(comporta$ind)[k])
+# Finding out the position of the “j behavior”.   
+ for (j in 1:length(levels(comporta$comp)))
+    {  
+      pos=which(indi$comp==levels(comporta$comp)[j])
+# Counting the number of eventer where the “j behavior” change to “i behavior” in the pos+1     
+ for(i in 1:length(levels(comporta$comp)))
+      {
+          soma.freq=sum((indi$comp[pos+1]==levels(comporta$comp)[i]),na.rm=TRUE)
+#Saving the counting in the empty array.
+        freq.bruta[j,i,k]=soma.freq 
+      }
+    }
+  }
+#Summation of the transition observed among pairs
+  sum.freq=apply(freq.bruta, c(1,2),sum)  
+#Creating a matrix of proportions of observed transition and adding names to the behaviors according the names in input
+  prop=round(sum.freq/apply(sum.freq,1,sum),2)
+  row.names(prop)=levels(comporta$comp)
+  colnames(prop)=levels(comporta$comp)
+ #Creating null scenarios to compare with the observed transitions
+#Creating an empty array to save the transition matrix s.freq.bruta=array(NA,dim=c(length(levels(comporta$comp)),length(levels(comporta$comp)),length(levels(comporta$ind))))
+#Creating an empty array to save the summation of transition matrix 
+c.nulo=array(NA,dim=c(length(levels(comporta$comp)),length(levels(comporta$comp)),n.sim))
+ Simulating nsim scenarios with random behaviors sequences using the same behaviors observed by pair.
+  
+
+  for(o in 1:n.sim)
+  {
+       for(l in 1:length(levels(comporta$ind))) 
+    {
+      #Creating different tables to each pair to avoid transitions between behaviors of different pairs. 
+  s.indi=subset(comporta,subset = comporta$ind==levels(comporta$ind)[l])
+      #Messing up the sequence behaviors.
+        bagunca=sample(s.indi$comp)
+     
+      for (m in 1:length(levels(comporta$comp)))
+      {
+          # Finding out the position of the “m behavior”.  
+        s.pos=which(bagunca==levels(comporta$comp)[m])
+        
+        for(n in 1:length(levels(comporta$comp)))
+        {
+      # Counting the number of eventer where the “m behavior” change to “n behavior” in the pos+1     
+       s.soma.freq=sum((bagunca[s.pos+1]==levels(comporta$comp)[n]),na.rm=TRUE)
+          #Saving the counting in the empty array.          
+          s.freq.bruta[m,n,l]=s.soma.freq
+                 }        
+      }
+    }
+   #Summation of the random transition among pairs.
+    soma= apply(s.freq.bruta, c(1,2), sum)
+    #Creating a matrix of proportions of random transition 
+    prop.nulo=soma/apply(soma,1,sum)
+    #Saving the proportion in a empty array
+    c.nulo[,,o]=prop.nulo 
+  }
+  #Finding out the proportion of random scenarios where values of random transitions were equal or higher than the observed.
+#Creating a empty array to save True-False matrix.   dif.cnulo=array(NA,dim=c(length(levels(comporta$comp)),length(levels(comporta$comp)),n.sim))
+    for (r in 1:n.sim)
+  {
+    for(q in 1:length(levels(comporta$comp)))
+    {
+      for(p in 1:length(levels(comporta$comp)))
+      {
+#Finding out the number of events were the random transitions were equal or higher than the observed transitions      
+        diferencas=c.nulo[p,q,r]>=prop[p,q]
+        
+        #Saving results in an empty array
+               dif.cnulo[p,q,r]=diferencas
+      }
+    }
+  }
+  #Calculating the proportion of random transitions equal or higher than the observed in the nsim null scenarios
+  probabilidade= round(apply(dif.cnulo, c(1,2), sum)/n.sim,4) 
+  
+  #Adding names to the behaviors according to the input behaviors
+  row.names(probabilidade)=levels(comporta$comp)
+  colnames(probabilidade)=levels(comporta$comp) 
+  #Creating the output if ind.matrix=TRUE
+  if(ind.matrix==TRUE)  {return(list(Proporções.observadas=prop,Probabilidade.por.transição=probabilidade,Eventos.por.indivíduo=freq.bruta))}
+  #Creating the output if ind.matrix=FALSE
+else  {return(list(Proporções.observadas=prop,Probabilidade.por.transição=probabilidade))} 
+}
+
